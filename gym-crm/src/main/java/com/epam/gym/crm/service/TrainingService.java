@@ -1,10 +1,13 @@
 package com.epam.gym.crm.service;
 
+import com.epam.gym.crm.client.WorkloadClient;
 import com.epam.gym.crm.dto.trainee.TraineeShortResponse;
 import com.epam.gym.crm.dto.trainer.TrainerShortResponse;
 import com.epam.gym.crm.dto.training.CreateTrainingRequest;
 import com.epam.gym.crm.dto.training.TraineeTrainingFilterRequest;
 import com.epam.gym.crm.dto.training.TrainerTrainingFilterRequest;
+import com.epam.gym.crm.dto.workload.ActionType;
+import com.epam.gym.crm.dto.workload.TrainerWorkloadRequest;
 import com.epam.gym.crm.exception.NotFoundException;
 import com.epam.gym.crm.mapper.TraineeMapper;
 import com.epam.gym.crm.mapper.TrainerMapper;
@@ -37,7 +40,7 @@ public class TrainingService {
     private final TrainerRepository trainerRepository;
     private final TrainerMapper trainerMapper;
     private final TraineeMapper traineeMapper;
-
+    private final WorkloadClient workloadClient;
 
     @Transactional
     public Training create(CreateTrainingRequest request) {
@@ -67,7 +70,31 @@ public class TrainingService {
                 savedTraining.getDuration()
         );
 
+        sendWorkloadRequest(savedTraining, ActionType.ADD);
+
         return savedTraining;
+    }
+
+    private void sendWorkloadRequest(Training training, ActionType actionType) {
+        Trainer trainer = training.getTrainer();
+
+        TrainerWorkloadRequest workloadRequest = TrainerWorkloadRequest.builder()
+                .username(trainer.getUsername())
+                .firstName(trainer.getFirstName())
+                .lastName(trainer.getLastName())
+                .isActive(trainer.isActive())
+                .trainingDate(training.getTrainingDate())
+                .trainingDuration(training.getDuration())
+                .actionType(actionType)
+                .build();
+
+        try {
+            LOG.info("Sending workload update request to gym-workload for trainer: {}", trainer.getUsername());
+            workloadClient.updateWorkload(workloadRequest);
+            LOG.info("Workload update request successfully processed for trainer: {}", trainer.getUsername());
+        } catch (Exception e) {
+            LOG.warn("Failed to update gym-workload microservice for trainer {}: {}", trainer.getUsername(), e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
