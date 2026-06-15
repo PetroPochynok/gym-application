@@ -1,7 +1,6 @@
 package com.epam.gym.workload.service;
 
-import com.epam.gym.workload.dto.ActionType;
-import com.epam.gym.workload.dto.TrainerWorkloadRequest;
+import com.epam.gym.workload.dto.*;
 import com.epam.gym.workload.model.TrainerWorkload;
 import com.epam.gym.workload.model.TrainingMonthSummary;
 import com.epam.gym.workload.repository.TrainerWorkloadRepository;
@@ -11,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +20,41 @@ import java.util.Optional;
 public class TrainerWorkloadService {
 
     private final TrainerWorkloadRepository workloadRepository;
+
+    @Transactional(readOnly = true)
+    public TrainerWorkloadResponse getTrainerWorkload(String username) {
+        log.info("Fetching workload summary for trainer: {}", username);
+
+        TrainerWorkload trainerWorkload = workloadRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Trainer workload record not found for username: " + username));
+
+        List<YearSummaryDto> yearsList = trainerWorkload.getMonthSummaries().stream()
+                .collect(Collectors.groupingBy(TrainingMonthSummary::getYear))
+                .entrySet().stream()
+                .map(entry -> {
+                    int year = entry.getKey();
+                    List<MonthSummaryDto> months = entry.getValue().stream()
+                            .map(m -> MonthSummaryDto.builder()
+                                    .month(m.getMonth())
+                                    .trainingSummaryDuration(m.getTotalWorkingHours())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    return YearSummaryDto.builder()
+                            .year(year)
+                            .months(months)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return TrainerWorkloadResponse.builder()
+                .username(trainerWorkload.getUsername())
+                .firstName(trainerWorkload.getFirstName())
+                .lastName(trainerWorkload.getLastName())
+                .isActive(trainerWorkload.isActive())
+                .years(yearsList)
+                .build();
+    }
 
     @Transactional
     public void updateWorkload(TrainerWorkloadRequest request) {
