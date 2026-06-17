@@ -36,4 +36,10 @@ public class TrainingController {
 
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTraining(@PathVariable Long id) {
+        trainingService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

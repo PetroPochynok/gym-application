@@ -75,7 +75,31 @@ public class TrainingService {
         return savedTraining;
     }
 
-    private void sendWorkloadRequest(Training training, ActionType actionType) {
+    @Transactional
+    public void delete(Long id) {
+        Training training = trainingRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(String.format("Training not found: id=%d", id)));
+
+        trainingRepository.delete(training);
+
+        LOG.info("Training deleted from CRM: id={}, trainerUsername={}", id, training.getTrainer().getUsername());
+
+        sendWorkloadRequest(training, ActionType.DELETE);
+    }
+
+    @Transactional
+    public void deleteByTraineeUsername(String traineeUsername) {
+        List<Training> trainingsToDelete = trainingRepository.findByTrainee_Username(traineeUsername);
+
+        for (Training training : trainingsToDelete) {
+            trainingRepository.delete(training);
+            sendWorkloadRequest(training, ActionType.DELETE);
+        }
+
+        LOG.info("Bulk training deletion executed for trainee: {}, total deleted: {}", traineeUsername, trainingsToDelete.size());
+    }
+
+    public void sendWorkloadRequest(Training training, ActionType actionType) {
         Trainer trainer = training.getTrainer();
 
         TrainerWorkloadRequest workloadRequest = TrainerWorkloadRequest.builder()

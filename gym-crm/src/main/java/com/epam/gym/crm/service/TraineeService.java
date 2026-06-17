@@ -1,6 +1,7 @@
 package com.epam.gym.crm.service;
 
 import com.epam.gym.crm.dto.trainee.*;
+import com.epam.gym.crm.dto.workload.ActionType;
 import com.epam.gym.crm.exception.NotFoundException;
 import com.epam.gym.crm.mapper.TraineeMapper;
 import com.epam.gym.crm.mapper.TrainerMapper;
@@ -146,21 +147,17 @@ public class TraineeService {
         Trainee trainee = traineeRepository.findByUsername(traineeUsername)
                 .orElseThrow(() -> new NotFoundException(String.format("Trainee not found: username=%s", traineeUsername)));
 
-        trainingRepository.deleteByTrainee_Username(traineeUsername);
+        trainingService.deleteByTraineeUsername(traineeUsername);
 
         List<Training> trainings = request.getTrainers().stream()
                 .map(dto -> {
-
                     Trainer trainer = trainerRepository.findByUsername(dto.getTrainerUsername())
                             .orElseThrow(() -> new NotFoundException(String.format("Trainer not found: username=%s", dto.getTrainerUsername())));
 
                     Training training = new Training();
-
                     training.setTrainee(trainee);
                     training.setTrainer(trainer);
-
                     training.setTrainingType(trainer.getSpecialization());
-
                     training.setTrainingName(dto.getTrainingName());
                     training.setTrainingDate(dto.getTrainingDate());
                     training.setDuration(dto.getDuration());
@@ -169,10 +166,13 @@ public class TraineeService {
                 })
                 .toList();
 
-        trainingRepository.saveAll(trainings);
+        List<Training> savedTrainings = trainingRepository.saveAll(trainings);
+
+        for (Training savedTraining : savedTrainings) {
+            trainingService.sendWorkloadRequest(savedTraining, ActionType.ADD);
+        }
 
         UpdateTraineeTrainersResponse response = new UpdateTraineeTrainersResponse();
-
         response.setTrainers(
                 trainerMapper.toShortResponseList(trainings.stream()
                         .map(Training::getTrainer)
