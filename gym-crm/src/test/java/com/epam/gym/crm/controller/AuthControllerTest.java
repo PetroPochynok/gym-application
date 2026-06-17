@@ -91,4 +91,30 @@ public class AuthControllerTest {
         verify(trainerService).changePassword(trainer, "new");
         verify(traineeService, never()).changePassword(any(), any());
     }
+
+    @Test
+    void logout_shouldClearContext_andInvalidateSession_whenSessionExists() {
+        javax.servlet.http.HttpServletRequest request = mock(javax.servlet.http.HttpServletRequest.class);
+        javax.servlet.http.HttpSession session = mock(javax.servlet.http.HttpSession.class);
+
+        when(request.getSession(false)).thenReturn(session);
+
+        ResponseEntity<Void> response = authController.logout(request);
+
+        assertEquals(200, response.getStatusCodeValue());
+        verify(request).getSession(false);
+        verify(session).invalidate();
+    }
+
+    @Test
+    void logout_shouldClearContext_whenSessionDoesNotExist() {
+        javax.servlet.http.HttpServletRequest request = mock(javax.servlet.http.HttpServletRequest.class);
+
+        when(request.getSession(false)).thenReturn(null);
+
+        ResponseEntity<Void> response = authController.logout(request);
+
+        assertEquals(200, response.getStatusCodeValue());
+        verify(request).getSession(false);
+    }
 }

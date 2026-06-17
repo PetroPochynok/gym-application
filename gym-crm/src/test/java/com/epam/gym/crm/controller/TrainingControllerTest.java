@@ -36,4 +36,14 @@ class TrainingControllerTest {
 
         verify(trainingService).create(request);
     }
+
+    @Test
+    void deleteTraining_shouldCallService_andReturnNoContent() {
+        Long id = 1L;
+
+        ResponseEntity<Void> response = trainingController.deleteTraining(id);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(trainingService).delete(id);
+    }
 }

@@ -405,16 +405,44 @@ class TraineeServiceTest {
         when(trainerMapper.toShortResponseList(anyList()))
                 .thenReturn(List.of(new TrainerShortResponse()));
 
-        UpdateTraineeTrainersResponse response =
-                traineeService.updateTraineeTrainers(traineeUsername, request);
+        UpdateTraineeTrainersResponse response = traineeService.updateTraineeTrainers(traineeUsername, request);
 
         assertNotNull(response);
         assertNotNull(response.getTrainers());
 
         verify(traineeRepository).findByUsername(traineeUsername);
-        verify(trainingRepository).deleteByTrainee_Username(traineeUsername);
+        verify(trainingService).deleteByTraineeUsername(traineeUsername);
         verify(trainingRepository).saveAll(anyList());
         verify(trainerMapper).toShortResponseList(anyList());
+    }
+
+    @Test
+    void updateTraineeTrainers_shouldThrowException_whenTraineeNotFound() {
+        String username = "unknown";
+        UpdateTraineeTrainersRequest request = new UpdateTraineeTrainersRequest();
+        when(traineeRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> traineeService.updateTraineeTrainers(username, request));
+        verifyNoInteractions(trainingService, trainingRepository);
+    }
+
+    @Test
+    void updateTraineeTrainers_shouldThrowException_whenTrainerNotFound() {
+        String traineeUsername = "john";
+        Trainee trainee = new Trainee();
+        trainee.setUsername(traineeUsername);
+
+        TrainerAssignmentRequest assignmentRequest = new TrainerAssignmentRequest();
+        assignmentRequest.setTrainerUsername("unknown_trainer");
+
+        UpdateTraineeTrainersRequest request = new UpdateTraineeTrainersRequest();
+        request.setTrainers(List.of(assignmentRequest));
+
+        when(traineeRepository.findByUsername(traineeUsername)).thenReturn(Optional.of(trainee));
+        when(trainerRepository.findByUsername("unknown_trainer")).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> traineeService.updateTraineeTrainers(traineeUsername, request));
+        verify(trainingRepository, never()).saveAll(anyList());
     }
 
     @Test
@@ -482,6 +510,15 @@ class TraineeServiceTest {
         verify(traineeRepository).findByUsername(username);
         verify(traineeMapper).toProfileResponse(trainee);
         verify(trainingService).getTrainersByTraineeUsername(username);
+    }
+
+    @Test
+    void getProfile_shouldThrowException_whenTraineeNotFound() {
+        String username = "unknown";
+        when(traineeRepository.findByUsername(username)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> traineeService.getProfile(username));
+        verifyNoInteractions(traineeMapper, trainingService);
     }
 
     @Test

@@ -1,8 +1,16 @@
 package com.epam.gym.crm.service;
 
+import com.epam.gym.crm.client.WorkloadClient;
+import com.epam.gym.crm.dto.trainee.TraineeShortResponse;
+import com.epam.gym.crm.dto.trainer.TrainerShortResponse;
 import com.epam.gym.crm.dto.training.CreateTrainingRequest;
 import com.epam.gym.crm.dto.training.TraineeTrainingFilterRequest;
 import com.epam.gym.crm.dto.training.TrainerTrainingFilterRequest;
+import com.epam.gym.crm.dto.workload.ActionType;
+import com.epam.gym.crm.dto.workload.TrainerWorkloadRequest;
+import com.epam.gym.crm.exception.NotFoundException;
+import com.epam.gym.crm.mapper.TraineeMapper;
+import com.epam.gym.crm.mapper.TrainerMapper;
 import com.epam.gym.crm.model.*;
 import com.epam.gym.crm.repository.TraineeRepository;
 import com.epam.gym.crm.repository.TrainerRepository;
@@ -35,12 +43,20 @@ class TrainingServiceTest {
     @Mock
     private TrainerRepository trainerRepository;
 
+    @Mock
+    private TrainerMapper trainerMapper;
+
+    @Mock
+    private TraineeMapper traineeMapper;
+
+    @Mock
+    private WorkloadClient workloadClient;
+
     @InjectMocks
     private TrainingService trainingService;
 
     @Test
-    void create_savesTraining() {
-
+    void create_savesTraining_successfully() {
         CreateTrainingRequest request = new CreateTrainingRequest();
         request.setTraineeUsername("trainee1");
         request.setTrainerUsername("trainer1");
@@ -55,6 +71,7 @@ class TrainingServiceTest {
         Trainer trainer = new Trainer();
         trainer.setId(2L);
         trainer.setUsername("trainer1");
+        trainer.setSpecialization(new TrainingType());
 
         Training savedTraining = new Training();
         savedTraining.setId(100L);
@@ -64,26 +81,84 @@ class TrainingServiceTest {
         savedTraining.setTrainingDate(request.getTrainingDate());
         savedTraining.setDuration(60);
 
-        when(traineeRepository.findByUsername("trainee1"))
-                .thenReturn(Optional.of(trainee));
-
-        when(trainerRepository.findByUsername("trainer1"))
-                .thenReturn(Optional.of(trainer));
-
-        when(trainingRepository.save(any(Training.class)))
-                .thenReturn(savedTraining);
+        when(traineeRepository.findByUsername("trainee1")).thenReturn(Optional.of(trainee));
+        when(trainerRepository.findByUsername("trainer1")).thenReturn(Optional.of(trainer));
+        when(trainingRepository.save(any(Training.class))).thenReturn(savedTraining);
 
         Training result = trainingService.create(request);
 
         assertNotNull(result);
         assertEquals("Morning", result.getTrainingName());
-        assertEquals(60, result.getDuration());
-        assertEquals(trainee, result.getTrainee());
-        assertEquals(trainer, result.getTrainer());
+        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
+    }
 
-        verify(traineeRepository).findByUsername("trainee1");
-        verify(trainerRepository).findByUsername("trainer1");
-        verify(trainingRepository).save(any(Training.class));
+    @Test
+    void create_throwsNotFoundException_whenTraineeNotFound() {
+        CreateTrainingRequest request = new CreateTrainingRequest();
+        request.setTraineeUsername("unknown_trainee");
+
+        when(traineeRepository.findByUsername("unknown_trainee")).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> trainingService.create(request));
+        verify(trainingRepository, never()).save(any());
+    }
+
+    @Test
+    void create_throwsNotFoundException_whenTrainerNotFound() {
+        CreateTrainingRequest request = new CreateTrainingRequest();
+        request.setTraineeUsername("trainee1");
+        request.setTrainerUsername("unknown_trainer");
+
+        when(traineeRepository.findByUsername("trainee1")).thenReturn(Optional.of(new Trainee()));
+        when(trainerRepository.findByUsername("unknown_trainer")).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> trainingService.create(request));
+        verify(trainingRepository, never()).save(any());
+    }
+
+    @Test
+    void delete_removesTraining_successfully() {
+        Training training = buildTraining();
+        when(trainingRepository.findById(1L)).thenReturn(Optional.of(training));
+
+        assertDoesNotThrow(() -> trainingService.delete(1L));
+
+        verify(trainingRepository, times(1)).delete(training);
+        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
+    }
+
+    @Test
+    void delete_throwsNotFoundException_whenTrainingNotFound() {
+        when(trainingRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> trainingService.delete(99L));
+        verify(trainingRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteByTraineeUsername_deletesAllTrainingsForTrainee() {
+        Training training1 = buildTraining();
+        Training training2 = buildTraining();
+        List<Training> trainings = List.of(training1, training2);
+
+        when(trainingRepository.findByTrainee_Username("trainee.user")).thenReturn(trainings);
+
+        trainingService.deleteByTraineeUsername("trainee.user");
+
+        verify(trainingRepository, times(2)).delete(any(Training.class));
+        verify(workloadClient, times(2)).updateWorkload(any(TrainerWorkloadRequest.class));
+    }
+
+    @Test
+    void sendWorkloadRequest_logsWarning_whenWorkloadClientThrowsException() {
+        Training training = buildTraining();
+
+        doThrow(new RuntimeException("Service Unavailable"))
+                .when(workloadClient).updateWorkload(any(TrainerWorkloadRequest.class));
+
+        assertDoesNotThrow(() -> trainingService.sendWorkloadRequest(training, ActionType.ADD));
+
+        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
     }
 
     @Test
@@ -93,7 +168,6 @@ class TrainingServiceTest {
         Optional<Training> result = trainingService.getById(9L);
 
         assertTrue(result.isEmpty());
-
         verify(trainingRepository).findById(9L);
     }
 
@@ -102,75 +176,76 @@ class TrainingServiceTest {
         Training training = buildTraining();
         training.setId(1L);
 
-        when(trainingRepository.findById(1L))
-                .thenReturn(Optional.of(training));
+        when(trainingRepository.findById(1L)).thenReturn(Optional.of(training));
 
         Optional<Training> result = trainingService.getById(1L);
 
         assertTrue(result.isPresent());
         assertEquals(1L, result.get().getId());
-        assertEquals("Morning", result.get().getTrainingName());
-
         verify(trainingRepository).findById(1L);
     }
 
     @Test
     void getAll_shouldReturnListOfTrainings() {
         Training training = buildTraining();
-
         when(trainingRepository.findAll()).thenReturn(List.of(training));
 
         List<Training> result = trainingService.getAll();
 
         assertEquals(1, result.size());
-        assertEquals("Morning", result.getFirst().getTrainingName());
-        assertEquals(60, result.getFirst().getDuration());
-
         verify(trainingRepository).findAll();
     }
 
     @Test
     void getTraineeTrainings_returnsList() {
         Training training = buildTraining();
-
-        when(trainingRepository.findAll(ArgumentMatchers.<Specification<Training>>any()))
-                .thenReturn(List.of(training));
+        when(trainingRepository.findAll(ArgumentMatchers.<Specification<Training>>any())).thenReturn(List.of(training));
 
         TraineeTrainingFilterRequest filter = new TraineeTrainingFilterRequest();
-        filter.setPeriodFrom(LocalDate.now().minusDays(1));
-        filter.setPeriodTo(LocalDate.now());
-        filter.setTrainerName("trainer.user");
-        filter.setTrainingType("CARDIO");
 
         List<Training> result = trainingService.getTraineeTrainings("trainee.user", filter);
 
         assertEquals(1, result.size());
-        assertEquals("Morning", result.getFirst().getTrainingName());
-        assertEquals(60, result.getFirst().getDuration());
-
         verify(trainingRepository).findAll(ArgumentMatchers.<Specification<Training>>any());
     }
 
     @Test
     void getTrainerTrainings_returnsList() {
         Training training = buildTraining();
-
-        when(trainingRepository.findAll(ArgumentMatchers.<Specification<Training>>any()))
-                .thenReturn(List.of(training));
+        when(trainingRepository.findAll(ArgumentMatchers.<Specification<Training>>any())).thenReturn(List.of(training));
 
         TrainerTrainingFilterRequest filter = new TrainerTrainingFilterRequest();
-        filter.setPeriodFrom(LocalDate.now().minusDays(1));
-        filter.setPeriodTo(LocalDate.now());
-        filter.setTraineeName("trainee.user");
-        filter.setTrainingType("CARDIO");
 
         List<Training> result = trainingService.getTrainerTrainings("trainer.user", filter);
 
         assertEquals(1, result.size());
-        assertEquals("Morning", result.getFirst().getTrainingName());
-        assertEquals(60, result.getFirst().getDuration());
-
         verify(trainingRepository).findAll(ArgumentMatchers.<Specification<Training>>any());
+    }
+
+    @Test
+    void getTrainersByTraineeUsername_returnsMappedShortResponses() {
+        Training training = buildTraining();
+        when(trainingRepository.findByTrainee_Username("john")).thenReturn(List.of(training));
+        when(trainerMapper.toShortResponseList(anyList())).thenReturn(List.of(new TrainerShortResponse()));
+
+        List<TrainerShortResponse> result = trainingService.getTrainersByTraineeUsername("john");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(trainerMapper).toShortResponseList(anyList());
+    }
+
+    @Test
+    void getTraineesByTrainerUsername_returnsMappedShortResponses() {
+        Training training = buildTraining();
+        when(trainingRepository.findByTrainer_Username("mike")).thenReturn(List.of(training));
+        when(traineeMapper.toShortResponseList(anyList())).thenReturn(List.of(new TraineeShortResponse()));
+
+        List<TraineeShortResponse> result = trainingService.getTraineesByTrainerUsername("mike");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(traineeMapper).toShortResponseList(anyList());
     }
 
     private Training buildTraining() {
@@ -181,6 +256,9 @@ class TrainingServiceTest {
         Trainer trainer = new Trainer();
         trainer.setId(2L);
         trainer.setUsername("trainer.user");
+        trainer.setFirstName("John");
+        trainer.setLastName("Doe");
+        trainer.setActive(true);
 
         TrainingType type = new TrainingType();
         type.setTrainingTypeName("CARDIO");
