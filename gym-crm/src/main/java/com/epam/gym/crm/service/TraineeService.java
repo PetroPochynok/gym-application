@@ -39,6 +39,7 @@ public class TraineeService {
     private final CredentialUtil credentialUtil;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final WorkloadServiceClient workloadServiceClient;
 
     public Trainee create(Trainee trainee) {
         String username = credentialUtil.generateUsername(trainee.getFirstName(), trainee.getLastName());
@@ -169,7 +170,7 @@ public class TraineeService {
         List<Training> savedTrainings = trainingRepository.saveAll(trainings);
 
         for (Training savedTraining : savedTrainings) {
-            trainingService.sendWorkloadRequest(savedTraining, ActionType.ADD);
+            workloadServiceClient.sendWorkloadRequest(savedTraining, ActionType.ADD);
         }
 
         UpdateTraineeTrainersResponse response = new UpdateTraineeTrainersResponse();

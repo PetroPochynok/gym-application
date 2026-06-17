@@ -50,7 +50,7 @@ class TrainingServiceTest {
     private TraineeMapper traineeMapper;
 
     @Mock
-    private WorkloadClient workloadClient;
+    private WorkloadServiceClient workloadServiceClient;
 
     @InjectMocks
     private TrainingService trainingService;
@@ -89,7 +89,7 @@ class TrainingServiceTest {
 
         assertNotNull(result);
         assertEquals("Morning", result.getTrainingName());
-        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
+        verify(workloadServiceClient, times(1)).sendWorkloadRequest(any(Training.class), eq(ActionType.ADD));
     }
 
     @Test
@@ -124,7 +124,7 @@ class TrainingServiceTest {
         assertDoesNotThrow(() -> trainingService.delete(1L));
 
         verify(trainingRepository, times(1)).delete(training);
-        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
+        verify(workloadServiceClient, times(1)).sendWorkloadRequest(any(Training.class), eq(ActionType.DELETE));
     }
 
     @Test
@@ -146,19 +146,7 @@ class TrainingServiceTest {
         trainingService.deleteByTraineeUsername("trainee.user");
 
         verify(trainingRepository, times(2)).delete(any(Training.class));
-        verify(workloadClient, times(2)).updateWorkload(any(TrainerWorkloadRequest.class));
-    }
-
-    @Test
-    void sendWorkloadRequest_logsWarning_whenWorkloadClientThrowsException() {
-        Training training = buildTraining();
-
-        doThrow(new RuntimeException("Service Unavailable"))
-                .when(workloadClient).updateWorkload(any(TrainerWorkloadRequest.class));
-
-        assertDoesNotThrow(() -> trainingService.sendWorkloadRequest(training, ActionType.ADD));
-
-        verify(workloadClient, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
+        verify(workloadServiceClient, times(2)).sendWorkloadRequest(any(Training.class), eq(ActionType.DELETE));
     }
 
     @Test

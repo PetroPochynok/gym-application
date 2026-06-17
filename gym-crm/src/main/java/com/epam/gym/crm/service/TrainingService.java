@@ -18,6 +18,7 @@ import com.epam.gym.crm.repository.TraineeRepository;
 import com.epam.gym.crm.repository.TrainerRepository;
 import com.epam.gym.crm.repository.TrainingRepository;
 import com.epam.gym.crm.repository.specification.TrainingSpecification;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,7 @@ public class TrainingService {
     private final TrainerRepository trainerRepository;
     private final TrainerMapper trainerMapper;
     private final TraineeMapper traineeMapper;
-    private final WorkloadClient workloadClient;
+    private final WorkloadServiceClient workloadServiceClient;
 
     @Transactional
     public Training create(CreateTrainingRequest request) {
@@ -70,7 +71,7 @@ public class TrainingService {
                 savedTraining.getDuration()
         );
 
-        sendWorkloadRequest(savedTraining, ActionType.ADD);
+        workloadServiceClient.sendWorkloadRequest(savedTraining, ActionType.ADD);
 
         return savedTraining;
     }
@@ -84,7 +85,7 @@ public class TrainingService {
 
         LOG.info("Training deleted from CRM: id={}, trainerUsername={}", id, training.getTrainer().getUsername());
 
-        sendWorkloadRequest(training, ActionType.DELETE);
+        workloadServiceClient.sendWorkloadRequest(training, ActionType.DELETE);
     }
 
     @Transactional
@@ -93,32 +94,10 @@ public class TrainingService {
 
         for (Training training : trainingsToDelete) {
             trainingRepository.delete(training);
-            sendWorkloadRequest(training, ActionType.DELETE);
+            workloadServiceClient.sendWorkloadRequest(training, ActionType.DELETE);
         }
 
         LOG.info("Bulk training deletion executed for trainee: {}, total deleted: {}", traineeUsername, trainingsToDelete.size());
-    }
-
-    public void sendWorkloadRequest(Training training, ActionType actionType) {
-        Trainer trainer = training.getTrainer();
-
-        TrainerWorkloadRequest workloadRequest = TrainerWorkloadRequest.builder()
-                .username(trainer.getUsername())
-                .firstName(trainer.getFirstName())
-                .lastName(trainer.getLastName())
-                .isActive(trainer.isActive())
-                .trainingDate(training.getTrainingDate())
-                .trainingDuration(training.getDuration())
-                .actionType(actionType)
-                .build();
-
-        try {
-            LOG.info("Sending workload update request to gym-workload for trainer: {}", trainer.getUsername());
-            workloadClient.updateWorkload(workloadRequest);
-            LOG.info("Workload update request successfully processed for trainer: {}", trainer.getUsername());
-        } catch (Exception e) {
-            LOG.warn("Failed to update gym-workload microservice for trainer {}: {}", trainer.getUsername(), e.getMessage());
-        }
     }
 
     @Transactional(readOnly = true)
