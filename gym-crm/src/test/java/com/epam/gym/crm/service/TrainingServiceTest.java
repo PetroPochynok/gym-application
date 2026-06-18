@@ -136,9 +136,13 @@ class TrainingServiceTest {
     }
 
     @Test
-    void deleteByTraineeUsername_deletesAllTrainingsForTrainee() {
+    void deleteByTraineeUsername_withFutureTrainings_deletesAndSendsWorkloadRequest() {
         Training training1 = buildTraining();
+        training1.setTrainingDate(java.time.LocalDate.now().plusDays(5));
+
         Training training2 = buildTraining();
+        training2.setTrainingDate(java.time.LocalDate.now().plusDays(10));
+
         List<Training> trainings = List.of(training1, training2);
 
         when(trainingRepository.findByTrainee_Username("trainee.user")).thenReturn(trainings);
@@ -147,6 +151,24 @@ class TrainingServiceTest {
 
         verify(trainingRepository, times(2)).delete(any(Training.class));
         verify(workloadServiceClient, times(2)).sendWorkloadRequest(any(Training.class), eq(ActionType.DELETE));
+    }
+
+    @Test
+    void deleteByTraineeUsername_withPastTrainings_deletesFromCrmButSkipsWorkloadRequest() {
+        Training training1 = buildTraining();
+        training1.setTrainingDate(java.time.LocalDate.now().minusDays(5));
+
+        Training training2 = buildTraining();
+        training2.setTrainingDate(java.time.LocalDate.now().minusDays(10));
+
+        List<Training> trainings = List.of(training1, training2);
+
+        when(trainingRepository.findByTrainee_Username("trainee.user")).thenReturn(trainings);
+
+        trainingService.deleteByTraineeUsername("trainee.user");
+
+        verify(trainingRepository, times(2)).delete(any(Training.class));
+        verify(workloadServiceClient, never()).sendWorkloadRequest(any(Training.class), eq(ActionType.DELETE));
     }
 
     @Test

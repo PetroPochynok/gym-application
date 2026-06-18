@@ -138,6 +138,8 @@ public class TraineeService {
         Trainee trainee = traineeRepository.findByUsername(traineeUsername)
                 .orElseThrow(() -> new NotFoundException(String.format("Trainee not found: username=%s", traineeUsername)));
 
+        trainingService.deleteByTraineeUsername(traineeUsername);
+
         traineeRepository.delete(trainee);
 
         LOG.info("Trainee deleted by username: id={}, username={}", trainee.getId(), traineeUsername);

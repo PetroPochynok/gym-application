@@ -26,6 +26,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -91,10 +92,16 @@ public class TrainingService {
     @Transactional
     public void deleteByTraineeUsername(String traineeUsername) {
         List<Training> trainingsToDelete = trainingRepository.findByTrainee_Username(traineeUsername);
+        LocalDate today = LocalDate.now();
 
         for (Training training : trainingsToDelete) {
             trainingRepository.delete(training);
-            workloadServiceClient.sendWorkloadRequest(training, ActionType.DELETE);
+
+            if (!training.getTrainingDate().isBefore(today)) {
+                workloadServiceClient.sendWorkloadRequest(training, ActionType.DELETE);
+            } else {
+                LOG.info("Past training (id={}) deleted from CRM, workload update skipped to preserve historical data.", training.getId());
+            }
         }
 
         LOG.info("Bulk training deletion executed for trainee: {}, total deleted: {}", traineeUsername, trainingsToDelete.size());
