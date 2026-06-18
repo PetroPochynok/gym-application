@@ -5,12 +5,17 @@ import com.epam.gym.workload.dto.ActionType;
 import com.epam.gym.workload.dto.TrainerWorkloadRequest;
 import com.epam.gym.workload.dto.TrainerWorkloadResponse;
 import com.epam.gym.workload.service.TrainerWorkloadService;
+import com.epam.gym.workload.security.JwtAuthFilter;
+import com.epam.gym.workload.security.JwtProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -18,12 +23,18 @@ import java.util.ArrayList;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TrainerWorkloadController.class)
+@Import({JwtAuthFilter.class, JwtProvider.class})
+@TestPropertySource(properties = {
+        "jwt.secret=9a74132a4e214c7784f18b32c69d8d1e2f3g4h5j6k7l8m9n0p1q2r3s4t5u6v7w"
+})
+@WithMockUser(username = "olga.k", roles = "USER")
 class TrainerWorkloadControllerTest {
 
     @Autowired
@@ -65,7 +76,8 @@ class TrainerWorkloadControllerTest {
 
         mockMvc.perform(post("/api/v1/workload")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(csrf()))
                 .andExpect(status().isOk());
 
         verify(workloadService, times(1)).updateWorkload(any(TrainerWorkloadRequest.class));
