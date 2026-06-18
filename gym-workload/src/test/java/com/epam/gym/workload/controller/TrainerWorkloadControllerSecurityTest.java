@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,5 +47,22 @@ class TrainerWorkloadControllerSecurityTest {
         mockMvc.perform(get("/api/v1/workload/trainer.olga")
                         .header("Authorization", "Bearer valid-token"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getWorkload_withTransactionIdHeader_shouldPropagateHeader() throws Exception {
+        String customTxId = "test-tx-id-12345";
+
+        when(jwtProvider.validateToken(anyString())).thenReturn(true);
+        when(jwtProvider.getUsernameFromToken(anyString())).thenReturn("trainer.olga");
+
+        mockMvc.perform(get("/api/v1/workload/trainer.olga")
+                        .header("Authorization", "Bearer valid-token")
+                        .header("X-Transaction-Id", customTxId)) // Передаємо ID
+                .andExpect(status().isNotFound())
+                .andExpect(result -> {
+                    String responseTxId = result.getResponse().getHeader("X-Transaction-Id");
+                    assertEquals(customTxId, responseTxId);
+                });
     }
 }
