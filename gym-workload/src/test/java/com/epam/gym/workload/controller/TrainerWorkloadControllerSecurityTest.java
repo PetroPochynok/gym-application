@@ -8,6 +8,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -36,13 +38,14 @@ class TrainerWorkloadControllerSecurityTest {
 
         mockMvc.perform(get("/api/v1/workload/trainer.olga")
                         .header("Authorization", "Bearer invalid-token"))
-                .andExpect(status().isUnauthorized()); // Очікуємо 401 від нашого JwtAuthFilter
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
     void getWorkload_withValidToken_shouldPassSecurity() throws Exception {
         when(jwtProvider.validateToken(anyString())).thenReturn(true);
         when(jwtProvider.getUsernameFromToken(anyString())).thenReturn("trainer.olga");
+        when(jwtProvider.getRolesFromToken(anyString())).thenReturn(List.of("ROLE_SYSTEM"));
 
         mockMvc.perform(get("/api/v1/workload/trainer.olga")
                         .header("Authorization", "Bearer valid-token"))
@@ -55,10 +58,11 @@ class TrainerWorkloadControllerSecurityTest {
 
         when(jwtProvider.validateToken(anyString())).thenReturn(true);
         when(jwtProvider.getUsernameFromToken(anyString())).thenReturn("trainer.olga");
+        when(jwtProvider.getRolesFromToken(anyString())).thenReturn(List.of("ROLE_SYSTEM"));
 
         mockMvc.perform(get("/api/v1/workload/trainer.olga")
                         .header("Authorization", "Bearer valid-token")
-                        .header("X-Transaction-Id", customTxId)) // Передаємо ID
+                        .header("X-Transaction-Id", customTxId))
                 .andExpect(status().isNotFound())
                 .andExpect(result -> {
                     String responseTxId = result.getResponse().getHeader("X-Transaction-Id");

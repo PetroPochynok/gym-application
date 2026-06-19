@@ -10,6 +10,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,8 +61,36 @@ class JwtProviderTest {
 
     @Test
     void validateToken_shouldReturnFalseForExpiredToken() {
-        // Токен, який закінчився 5 хвилин тому (-300000 мс)
         String expiredToken = createTestToken("trainer.olga", -300000);
         assertFalse(jwtProvider.validateToken(expiredToken));
+    }
+
+    @Test
+    void getRolesFromToken_shouldReturnCorrectRoles_whenRolesExist() {
+        Date now = new Date();
+        String token = io.jsonwebtoken.Jwts.builder()
+                .setSubject("trainer.olga")
+                .claim("roles", List.of("ROLE_SYSTEM", "ROLE_USER"))
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + 3600000))
+                .signWith(testKey, io.jsonwebtoken.SignatureAlgorithm.HS256)
+                .compact();
+
+        List<String> roles = jwtProvider.getRolesFromToken(token);
+        assertEquals(2, roles.size());
+        assertTrue(roles.contains("ROLE_SYSTEM"));
+        assertTrue(roles.contains("ROLE_USER"));
+    }
+
+    @Test
+    void getRolesFromToken_shouldReturnEmptyList_whenRolesMissing() {
+        String token = createTestToken("trainer.olga", 3600000);
+        List<String> roles = jwtProvider.getRolesFromToken(token);
+        assertTrue(roles.isEmpty());
+    }
+
+    @Test
+    void validateToken_shouldReturnFalse_whenExceptionThrown() {
+        assertFalse(jwtProvider.validateToken(null));
     }
 }
