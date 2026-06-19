@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .and()
                 .authorizeRequests()
                 .antMatchers("/h2-console/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .antMatchers("/api/v1/workload/**").hasRole("SYSTEM")
                 .anyRequest().authenticated()
                 .and()
                 .headers().frameOptions().disable()

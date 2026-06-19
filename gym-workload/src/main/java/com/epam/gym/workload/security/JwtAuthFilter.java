@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -39,8 +40,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
 
             String username = jwtProvider.getUsernameFromToken(token);
+
+            List<String> roles = jwtProvider.getRolesFromToken(token);
+
+            List<SimpleGrantedAuthority> authorities = roles.stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
+
+            if (authorities.isEmpty()) {
+                authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+            }
+
             var authentication = new UsernamePasswordAuthenticationToken(
-                    username, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                    username, null, authorities
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
 

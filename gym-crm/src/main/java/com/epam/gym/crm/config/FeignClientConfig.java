@@ -1,14 +1,17 @@
 package com.epam.gym.crm.config;
 
 import com.epam.gym.crm.context.TransactionContext;
+import com.epam.gym.crm.service.security.JwtProvider;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Configuration
+@RequiredArgsConstructor
 public class FeignClientConfig implements RequestInterceptor {
+
+    private final JwtProvider jwtProvider;
 
     @Override
     public void apply(RequestTemplate template) {
@@ -17,12 +20,8 @@ public class FeignClientConfig implements RequestInterceptor {
             template.header("X-Transaction-Id", txId);
         }
 
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes != null) {
-            String authHeader = attributes.getRequest().getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                template.header("Authorization", authHeader);
-            }
-        }
+        String systemToken = jwtProvider.generateInternalServiceToken();
+
+        template.header("Authorization", "Bearer " + systemToken);
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.Collections;
+import java.util.List;
 
 @Component
 public class JwtProvider {
@@ -31,6 +33,20 @@ public class JwtProvider {
                 .getBody();
 
         return claims.getSubject();
+    }
+
+    public List<String> getRolesFromToken(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(jwtSecret)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        List<?> roles = claims.get("roles", List.class);
+        if (roles == null) {
+            return Collections.emptyList();
+        }
+        return roles.stream().map(Object::toString).toList();
     }
 
     public boolean validateToken(String token) {

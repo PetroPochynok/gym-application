@@ -11,6 +11,7 @@ import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 @Component
 public class JwtProvider {
@@ -32,6 +33,20 @@ public class JwtProvider {
 
         return Jwts.builder()
                 .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(jwtSecret, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateInternalServiceToken() {
+        Date now = new Date();
+        long serviceJwtExpirationMs = 60000;
+        Date expiryDate = new Date(now.getTime() + serviceJwtExpirationMs);
+
+        return Jwts.builder()
+                .setSubject("gym-crm-internal")
+                .claim("roles", List.of("ROLE_SYSTEM"))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(jwtSecret, SignatureAlgorithm.HS256)
