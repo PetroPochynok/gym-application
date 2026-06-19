@@ -1,13 +1,11 @@
 package com.epam.gym.crm.service;
 
-import com.epam.gym.crm.client.WorkloadClient;
 import com.epam.gym.crm.dto.trainee.TraineeShortResponse;
 import com.epam.gym.crm.dto.trainer.TrainerShortResponse;
 import com.epam.gym.crm.dto.training.CreateTrainingRequest;
 import com.epam.gym.crm.dto.training.TraineeTrainingFilterRequest;
 import com.epam.gym.crm.dto.training.TrainerTrainingFilterRequest;
 import com.epam.gym.crm.dto.workload.ActionType;
-import com.epam.gym.crm.dto.workload.TrainerWorkloadRequest;
 import com.epam.gym.crm.exception.NotFoundException;
 import com.epam.gym.crm.mapper.TraineeMapper;
 import com.epam.gym.crm.mapper.TrainerMapper;
@@ -18,7 +16,6 @@ import com.epam.gym.crm.repository.TraineeRepository;
 import com.epam.gym.crm.repository.TrainerRepository;
 import com.epam.gym.crm.repository.TrainingRepository;
 import com.epam.gym.crm.repository.specification.TrainingSpecification;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
