@@ -16,8 +16,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -134,5 +133,29 @@ class TrainerControllerTest {
         assertEquals(200, response.getStatusCodeValue());
 
         verify(trainerService).updateTrainerActiveStatus("john", false);
+    }
+
+    @Test
+    void getTrainerWorkload_shouldReturnWorkloadResponse() {
+        String username = "olga.k";
+        com.epam.gym.crm.dto.workload.TrainerWorkloadResponse expected = com.epam.gym.crm.dto.workload.TrainerWorkloadResponse.builder()
+                .username(username)
+                .firstName("Olga")
+                .lastName("Kravets")
+                .isActive(true)
+                .years(List.of())
+                .build();
+
+        when(trainerService.getTrainerWorkload(username))
+                .thenReturn(expected);
+
+        com.epam.gym.crm.dto.workload.TrainerWorkloadResponse result = trainerController.getTrainerWorkload(username);
+
+        assertNotNull(result);
+        assertEquals(username, result.getUsername());
+        assertEquals("Olga", result.getFirstName());
+        assertTrue(result.isActive());
+
+        verify(trainerService).getTrainerWorkload(username);
     }
 }

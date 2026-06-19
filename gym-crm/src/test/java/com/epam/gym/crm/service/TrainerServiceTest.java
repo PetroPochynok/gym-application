@@ -1,5 +1,6 @@
 package com.epam.gym.crm.service;
 
+import com.epam.gym.crm.client.WorkloadClient;
 import com.epam.gym.crm.dto.trainee.TraineeShortResponse;
 import com.epam.gym.crm.dto.trainer.*;
 import com.epam.gym.crm.exception.NotFoundException;
@@ -48,6 +49,8 @@ class TrainerServiceTest {
     private JwtProvider jwtProvider;
     @InjectMocks
     private TrainerService trainerService;
+    @Mock
+    private WorkloadClient workloadClient;
 
     @Test
     void create_shouldGenerateCredentialsAndSave() {
@@ -508,6 +511,50 @@ class TrainerServiceTest {
 
         assertThrows(NotFoundException.class, () -> trainerService.updateProfile(username, request));
         verifyNoInteractions(trainerMapper);
+    }
+
+    @Test
+    void getTrainerWorkload_shouldReturnResponse_whenTrainerExists() {
+        String username = "olga.k";
+        Trainer trainer = new Trainer();
+        trainer.setUsername(username);
+
+        com.epam.gym.crm.dto.workload.TrainerWorkloadResponse expected = com.epam.gym.crm.dto.workload.TrainerWorkloadResponse.builder()
+                .username(username)
+                .firstName("Olga")
+                .lastName("Kravets")
+                .isActive(true)
+                .years(List.of())
+                .build();
+
+        when(trainerRepository.findByUsername(username))
+                .thenReturn(Optional.of(trainer));
+
+        when(workloadClient.getTrainerWorkload(username))
+                .thenReturn(org.springframework.http.ResponseEntity.ok(expected));
+
+        com.epam.gym.crm.dto.workload.TrainerWorkloadResponse result = trainerService.getTrainerWorkload(username);
+
+        assertNotNull(result);
+        assertEquals(username, result.getUsername());
+        assertEquals("Olga", result.getFirstName());
+        assertTrue(result.isActive());
+
+        verify(trainerRepository).findByUsername(username);
+        verify(workloadClient).getTrainerWorkload(username);
+    }
+
+    @Test
+    void getTrainerWorkload_shouldThrowException_whenTrainerNotFound() {
+        String username = "unknown";
+
+        when(trainerRepository.findByUsername(username))
+                .thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> trainerService.getTrainerWorkload(username));
+
+        verify(trainerRepository).findByUsername(username);
+        verifyNoInteractions(workloadClient);
     }
 
 }

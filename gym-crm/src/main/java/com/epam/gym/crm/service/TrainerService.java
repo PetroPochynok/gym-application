@@ -1,6 +1,8 @@
 package com.epam.gym.crm.service;
 
+import com.epam.gym.crm.client.WorkloadClient;
 import com.epam.gym.crm.dto.trainer.*;
+import com.epam.gym.crm.dto.workload.TrainerWorkloadResponse;
 import com.epam.gym.crm.exception.NotFoundException;
 import com.epam.gym.crm.mapper.TrainerMapper;
 import com.epam.gym.crm.model.Trainer;
@@ -38,6 +40,7 @@ public class TrainerService {
     private final TrainerMapper trainerMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final WorkloadClient workloadClient;
 
     public Trainer create(Trainer trainer) {
         String username = credentialUtil.generateUsername(trainer.getFirstName(), trainer.getLastName());
@@ -184,5 +187,14 @@ public class TrainerService {
         response.setTrainees(trainingService.getTraineesByTrainerUsername(saved.getUsername()));
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public TrainerWorkloadResponse getTrainerWorkload(String username) {
+        if (trainerRepository.findByUsername(username).isEmpty()) {
+            throw new NotFoundException(String.format("Trainer not found: username=%s", username));
+        }
+
+        return workloadClient.getTrainerWorkload(username).getBody();
     }
 }

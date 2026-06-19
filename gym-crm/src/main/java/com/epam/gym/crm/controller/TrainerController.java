@@ -3,6 +3,7 @@ package com.epam.gym.crm.controller;
 import com.epam.gym.crm.dto.trainer.*;
 import com.epam.gym.crm.dto.training.TrainerTrainingFilterRequest;
 import com.epam.gym.crm.dto.training.TrainingForTrainerResponse;
+import com.epam.gym.crm.dto.workload.TrainerWorkloadResponse;
 import com.epam.gym.crm.mapper.TrainingMapper;
 import com.epam.gym.crm.model.Training;
 import com.epam.gym.crm.service.TrainerService;
@@ -111,6 +112,20 @@ public class TrainerController {
         trainerService.updateTrainerActiveStatus(request.getUsername(), request.getIsActive());
 
         return ResponseEntity.ok().build();
+    }
+
+    @ApiOperation(value = "Get trainer workload summary", notes = "Retrieves working hours summary from workload microservice")
+    @ApiResponses({
+            @ApiResponse(code = 200, message = "Success"),
+            @ApiResponse(code = 401, message = "Unauthorized"),
+            @ApiResponse(code = 404, message = "Trainer not found")
+    })
+    @GetMapping("/{username}/workload")
+    public TrainerWorkloadResponse getTrainerWorkload(
+            @ApiParam(value = "Trainer username", required = true, example = "john.trainer")
+            @PathVariable @NotBlank String username
+    ) {
+        return trainerService.getTrainerWorkload(username);
     }
 
 }
