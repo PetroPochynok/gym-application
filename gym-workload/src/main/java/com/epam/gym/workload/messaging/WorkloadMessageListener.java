@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
+import javax.validation.Valid;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -14,17 +16,12 @@ public class WorkloadMessageListener {
 
     private final TrainerWorkloadService workloadService;
 
-    @JmsListener(destination = "${app.queue.trainer-workload}")
-    public void receiveWorkloadUpdate(TrainerWorkloadRequest request) {
+    @JmsListener(destination = "${app.queue.trainer-workload}", containerFactory = "jmsListenerContainerFactory")
+    public void receiveWorkloadUpdate(@Valid TrainerWorkloadRequest request) {
         log.info("Received asynchronous workload message from ActiveMQ for trainer: {}, Action: {}",
                 request.getUsername(), request.getActionType());
 
-        try {
-            workloadService.updateWorkload(request);
-            log.info("Successfully processed message for trainer: {}", request.getUsername());
-        } catch (Exception e) {
-            log.error("Error processing workload message for trainer: {}. Reason: {}",
-                    request.getUsername(), e.getMessage(), e);
-        }
+        workloadService.updateWorkload(request);
+        log.info("Successfully processed message for trainer: {}", request.getUsername());
     }
 }
