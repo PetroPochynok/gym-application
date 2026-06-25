@@ -6,18 +6,22 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.boot.autoconfigure.jms.DefaultJmsListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jms.annotation.JmsListenerConfigurer;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.config.JmsListenerContainerFactory;
+import org.springframework.jms.config.JmsListenerEndpointRegistrar;
 import org.springframework.jms.support.converter.MappingJackson2MessageConverter;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
+import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import javax.jms.ConnectionFactory;
 import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-public class JmsConfig {
+public class JmsConfig implements JmsListenerConfigurer {
 
     @Bean
     public MessageConverter jacksonJmsMessageConverter() {
@@ -46,5 +50,15 @@ public class JmsConfig {
         factory.setErrorHandler(t -> System.err.println("JMS Listener Validation/Processing Error: " + t.getMessage()));
 
         return factory;
+    }
+
+    @Override
+    public void configureJmsListeners(JmsListenerEndpointRegistrar registrar) {
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
+
+        DefaultMessageHandlerMethodFactory factory = new DefaultMessageHandlerMethodFactory();
+        factory.setValidator(validator);
+        registrar.setMessageHandlerMethodFactory(factory);
     }
 }
