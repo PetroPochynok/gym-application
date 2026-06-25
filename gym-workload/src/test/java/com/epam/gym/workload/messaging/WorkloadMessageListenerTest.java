@@ -9,10 +9,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import javax.validation.ValidationException;
 import java.time.LocalDate;
 
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WorkloadMessageListenerTest {
@@ -38,5 +39,33 @@ class WorkloadMessageListenerTest {
         workloadMessageListener.receiveWorkloadUpdate(request);
 
         verify(workloadService, times(1)).updateWorkload(request);
+    }
+
+    @Test
+    void receiveWorkloadUpdate_shouldThrowException_whenDurationIsNegative() {
+        TrainerWorkloadRequest request = TrainerWorkloadRequest.builder()
+                .username("olga.k")
+                .trainingDuration(-60)
+                .build();
+
+        assertThrows(ValidationException.class, () ->
+                workloadMessageListener.receiveWorkloadUpdate(request)
+        );
+
+        verify(workloadService, never()).updateWorkload(any());
+    }
+
+    @Test
+    void receiveWorkloadUpdate_shouldThrowException_whenUsernameIsMissing() {
+        TrainerWorkloadRequest request = TrainerWorkloadRequest.builder()
+                .username("")
+                .trainingDuration(60)
+                .build();
+
+        assertThrows(ValidationException.class, () ->
+                workloadMessageListener.receiveWorkloadUpdate(request)
+        );
+
+        verify(workloadService, never()).updateWorkload(any());
     }
 }
